@@ -51,3 +51,5 @@ https://adresse.data.gouv.fr/api  This API allow you to retrieve :
 - The api interface (payload format) can be changed if you want.
 
 https://docs.djangoproject.com/en/5.0/ref/contrib/gis/tutorial/#setting-up
+
+https://postgis.net/workshops/postgis-intro/creating_db.html

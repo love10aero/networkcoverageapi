@@ -15,10 +15,11 @@ class GroupSerializer(serializers.HyperlinkedModelSerializer):
         model = Group
         fields = ['url', 'name']
 
-class NetworkCoverageSerializer(serializers.HyperlinkedModelSerializer):
+class NetworkCoverageSerializer(serializers.ModelSerializer):
     class Meta:
         model = NetworkCoverage
-        fields = ['url', 'operator', 'long', 'lat', 'twoG', 'threeG', 'fourG']
+        fields = ['operator', 'location', 'twoG', 'threeG', 'fourG']
+
 
 class NetworkCoverageByAddressSerializer(serializers.Serializer):
     operator = serializers.CharField()

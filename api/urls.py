@@ -1,13 +1,6 @@
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from . import views
-
-router = DefaultRouter()
-router.register(r'users', views.UserViewSet)
-router.register(r'groups', views.GroupViewSet)
-router.register(r'networkcoverage', views.NetworkCoverageViewSet)
+from django.urls import path
+from api.views import network_coverage_view
 
 urlpatterns = [
-    path('', include(router.urls)),
-    path('coverage-by-address/', views.NetworkCoverageViewSet.as_view({'post': 'coverage_by_address'})),
+    path('coverage/', network_coverage_view, name='network_coverage_view'),
 ]
