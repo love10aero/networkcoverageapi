@@ -104,13 +104,13 @@ python manage.py runserver
 ### Get Network Coverage
 #### Endpoint
 ```bash
-GET /api/v1/coverage/?q=<address>
+GET /api/v1/networkcoverage/coverage/?q=<address>
 ```	
 
 #### Example
 
 ```bash
-GET /api/v1/coverage/?q=42+rue+papernest+75011+Paris
+GET /api/v1/networkcoverage/coverage/?q=42+rue+papernest+75011+Paris
 ```
 
 #### Response
@@ -158,6 +158,13 @@ GET /api/v1/coverage/?q=42+rue+papernest+75011+Paris
     }
 }
 ```	
+
+## Documentation
+
+DRF-yarf has been used to generate the documentation. After running the app, you can access the documentation at:
+- http://127.0.0.1:8000/api/swagger/
+- http://127.0.0.1:8000/api/redoc/
+
 ## Testing
 Run the following command to execute tests:
 ```bash	
