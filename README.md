@@ -1,55 +1,180 @@
-# Backend developer technical test
+# Network Coverage API
 
-<aside>
-💡 papernest product team wants to start selling mobile phone contracts in our web app. In order to help users choose the best provider, we want to provide hints with the network coverage at home. We want to implement it on a separate web service.
+## Overview
 
-</aside>
+This API allows querying the network coverage for a given address, providing information on the availability of 2G, 3G, and 4G coverage for each operator in France.
 
-# **Goal**
+## Features
 
----
+- **Network Coverage Information:** Retrieves 2G, 3G, and 4G network coverage for each operator based on the provided address.
+- **Address to Coordinates Conversion:** Utilizes the `adresse.data.gouv.fr` API to convert textual addresses into geographic coordinates.
+- **CSV Data Import:** Imports network coverage data from a CSV file containing Lambert93 coordinates.
 
-Build a small api project that we can request with a textual address request and retrieve 2G/3G/4G network coverage for each operator (if available) in the response.
+## Installation
 
-## **Example**
+### Prerequisites
 
----
+- Python 3.8+
+- Django 5.0
+- PostGIS-enabled PostgreSQL database
+- GDAL library
 
-GET: `your_api/?q=42+rue+papernest+75011+Paris`
+### Setting Up the Environment
 
-Response:
+1. **Clone the Repository:**
 
-```json
-{
-	"orange": {"2G": true, "3G": true, "4G": false}, 
-	"SFR": {"2G": true, "3G": true, "4G": true}
-}
+    ```sh
+    git clone <repository_url>
+    cd networkcoverageapi
+    ```
+
+2. **Create a Virtual Environment:**
+
+    ```sh
+    python -m venv venv
+    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+    ```
+
+3. **Install Dependencies:**
+
+    ```sh
+    pip install -r requirements.txt
+    ```
+
+4. **Configure the Database:**
+
+    Ensure that your PostgreSQL database has PostGIS installed:
+
+    ```sql
+    CREATE EXTENSION postgis;
+    ```
+
+    Confirm the installation:
+
+    ```sql
+    SELECT postgis_full_version();
+    ```
+
+5. **Set Up Environment Variables:**
+1. 
+    ```sh
+    export DJANGO_SETTINGS_MODULE=networkcoverageapi.settings
+    ```
+
+    ```env
+    POSTGRES_DB=<your_database_name>
+    POSTGRES_USER=<your_database_user>
+    POSTGRES_PASSWORD=<your_database_password>
+    ```
+
+6. **Apply Migrations:**
+
+    ```sh
+    python manage.py migrate
+    ```
+
+7. **Load Initial Data:**
+
+    Ensure you have the CSV file (`2018_01_Sites_mobiles_2G_3G_4G_France_metropolitaine_L93.csv`) in the `docs` directory, then run:
+
+    ```sh
+    python manage.py shell
+    ```
+
+    Once the shell is running, run the following command to load the initial data:
+
+    ```sh
+
+    from api.models import NetworkCoverage
+    from django.conf import settings
+    csv_file_path = settings.BASE_DIR / 'docs' / '2018_01_Sites_mobiles_2G_3G_4G_France_metropolitaine_L93.csv'
+    NetworkCoverage.import_csv(csv_file_path)
+
+    ```
+
+## Usage
+
+### Starting the Development Server
+
+```sh
+python manage.py runserver
+```	
+
+## API Endpoints
+### Get Network Coverage
+#### Endpoint
+```bash
+GET /api/v1/coverage/?q=<address>
+```	
+
+#### Example
+
+```bash
+GET /api/v1/coverage/?q=42+rue+papernest+75011+Paris
 ```
 
-## **Data that you can use**
+#### Response
+```json
+{
+    "SFR": {
+        "location": [
+            2.4235892377054817,
+            48.95889881296555
+        ],
+        "distance_km": 1.5212682488999998,
+        "2G": true,
+        "3G": true,
+        "4G": true
+    },
+    "Bouygues Telecom": {
+        "location": [
+            2.421175026461827,
+            48.98439890573347
+        ],
+        "distance_km": 1.58866826603,
+        "2G": true,
+        "3G": true,
+        "4G": true
+    },
+    "Free mobile": {
+        "location": [
+            2.410978758312727,
+            48.97509605708831
+        ],
+        "distance_km": 1.51650544801,
+        "2G": false,
+        "3G": true,
+        "4G": true
+    },
+    "Orange": {
+        "location": [
+            2.4151181073123005,
+            48.97749931591031
+        ],
+        "distance_km": 1.33300976902,
+        "2G": true,
+        "3G": true,
+        "4G": true
+    }
+}
+```	
+## Testing
+Run the following command to execute tests:
+```bash	
+python manage.py test
+```
 
----
+## Docker
 
-[2018_01_Sites_mobiles_2G_3G_4G_France_metropolitaine_L93.csv](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/59567297-fab1-4299-8630-4b4ae9977983/2018_01_Sites_mobiles_2G_3G_4G_France_metropolitaine_L93.csv)
+To run the application using Docker, you can follow the instructions provided in the [Dockerfile](Dockerfile) file. 
+NOTE: The implementation is of the docker is not complete, since OSGeo4W is not installed in the container. 
 
-The file above provides a list of network coverage measure. Each line have the provider (20801 = Orange, 20810 = SFR, 20815 = Free, 20820 = Bouygue, [source](https://fr.wikipedia.org/wiki/Mobile_Network_Code#Tableau_des_MNC_pour_la_France_m%C3%A9tropolitaine)), Lambert93 geographic coordinate (X, Y) and network coverage for 2G, 3G and 4G
 
-https://adresse.data.gouv.fr/api  This API allow you to retrieve :
+## Acknowledgements
 
-- address detail from a query address (the insee code, geographic coordinates, etc.)
-- Do reverse geographic search (from longitude and latitude, retrieve an address).
+- [adresse.data.gouv.fr](https://adresse.data.gouv.fr/)
+- Special thanks to all contributors and maintainers of the libraries and tools used in this project.
 
-# **Instructions**
+## Author
 
----
-
-- Use the language/framework/technology of your choice
-- Provide the resulting source code **in a hosted git repository (public is allowed)**
-- How you manage these data sources is up to you. Do as you want (you can use other data sources if you want).
-- If you transform the csv file with some offline processing, please provide the source file.
-- The goal is not to work on precise geographic match, a city-level precision is enough.
-- The api interface (payload format) can be changed if you want.
-
-https://docs.djangoproject.com/en/5.0/ref/contrib/gis/tutorial/#setting-up
-
-https://postgis.net/workshops/postgis-intro/creating_db.html
+Lovejinder Singh

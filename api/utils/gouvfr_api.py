@@ -2,12 +2,15 @@ import requests
 from rest_framework.response import Response
 from rest_framework import status
 
-
 class APIGouvFR:
-    def __init__(self):
-        pass
+    _instance = None
 
-    def get_coordinates(self, address):
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(APIGouvFR, cls).__new__(cls, *args, **kwargs)
+        return cls._instance
+
+    def get_coordinates_from_address(self, address):
         # Make a request to the address API
         response = requests.get(f"https://api-adresse.data.gouv.fr/search/?q={address}")
 
@@ -27,5 +30,5 @@ class APIGouvFR:
             return None
         
         # Get coordinates
-        coordinates = data['features'][0]['coordinates'] # this returns long, lat
+        coordinates = data['features'][0]['properties']["x"], data['features'][0]['properties']["y"]
         return coordinates

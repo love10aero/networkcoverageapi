@@ -13,15 +13,19 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 from pathlib import Path
 
 import os
-GDAL_LIBRARY_PATH = r'C:\OSGeo4W\bin\gdal309'
+
+# GDAL and PROJ configuration for local and Docker environments
 if os.name == 'nt':
-    import platform
     OSGEO4W = r"C:\OSGeo4W"
     assert os.path.isdir(OSGEO4W), "Directory does not exist: " + OSGEO4W
     os.environ['OSGEO4W_ROOT'] = OSGEO4W
     os.environ['GDAL_DATA'] = OSGEO4W + r"\share\gdal"
     os.environ['PROJ_LIB'] = OSGEO4W + r"\share\proj"
     os.environ['PATH'] = OSGEO4W + r"\bin;" + os.environ['PATH']
+    GDAL_LIBRARY_PATH = r'C:\OSGeo4W\bin\gdal309'
+else:
+    os.environ['GDAL_LIBRARY_PATH'] = '/usr/lib/libgdal.so'
+    os.environ['GEOS_LIBRARY_PATH'] = '/usr/lib/libgeos_c.so'
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -51,14 +55,21 @@ INSTALLED_APPS = [
     "django.contrib.gis",
     'rest_framework',
     'api',
+    'drf_yasg',
 ]
 
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
-    # 'DEFAULT_PERMISSION_CLASSES': [
-    #     'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
-    # ],
+    
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',  # Allow 100 requests per day for anonymous users
+        'user': '1000/day'  # Allow 1000 requests per day for authenticated users
+    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 10
 }
@@ -97,22 +108,14 @@ WSGI_APPLICATION = 'networkcoverageapi.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-# Database: geodjango --> P
-
 DATABASES = {
     "default": {
+        # Database: geodjango --> PostGIS
         "ENGINE": "django.contrib.gis.db.backends.postgis",
         "NAME": os.getenv("POSTGRES_DB"),
         "USER": os.getenv("POSTGRES_USER"),
         "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-        "HOST": "localhost",
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
         "PORT": "5432",
     },
 }

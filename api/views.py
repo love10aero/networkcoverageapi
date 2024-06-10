@@ -1,94 +1,108 @@
-from django.shortcuts import get_object_or_404
-from rest_framework.decorators import api_view
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.contrib.gis.geos import Point
 from django.contrib.gis.db.models.functions import Distance
+from api.utils.gouvfr_api import APIGouvFR
 from api.models import NetworkCoverage
 from api.serializers import NetworkCoverageSerializer
-import requests
+from api.utils.converters import get_operator_name, lamber93_to_gps
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
-from api.utils.utils import lamber93_to_gps
+class NetworkCoverageViewSet(viewsets.ViewSet):
+    """
+    A ViewSet for retrieving the network coverage information for a given address.
+    """
+    @swagger_auto_schema(
+        operation_description="Retrieve network coverage for a given address.",
+        manual_parameters=[
+            openapi.Parameter(
+                'q', openapi.IN_QUERY, description="Address to search for network coverage", type=openapi.TYPE_STRING
+            )
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                description="Network coverage information",
+                examples={
+                    "application/json": {
+                        "SFR": {
+                            "location": [
+                                2.4235892377054817,
+                                48.95889881296555
+                            ],
+                            "distance_km": 1.5212682488999998,
+                            "2G": True,
+                            "3G": True,
+                            "4G": True
+                        },
+                        "Orange": {
+                            "location": [
+                                2.4151181073123005,
+                                48.97749931591031
+                            ],
+                            "distance_km": 1.33300976902,
+                            "2G": True,
+                            "3G": True,
+                            "4G": True
+                        }
+                    }
+                }
+            ),
+            status.HTTP_404_NOT_FOUND: openapi.Response(description="No network coverage found")
+        }
+    )
+    @action(detail=False, methods=['get'])
+    def coverage(self, request):
+        """
+        Retrieves the network coverage information for a given address.
 
-def get_coordinates_from_address(address):
-    response = requests.get(f'https://api-adresse.data.gouv.fr/search/?q={address}')
-    data = response.json()
-    coordinates = data['features'][0]['properties']["x"], data['features'][0]['properties']["y"]
-    return coordinates
+        Parameters:
+            request (HttpRequest): The HTTP request object.
 
-@api_view(['GET'])
-def network_coverage_view(request):
-    operators_dict = {"20810": "Orange"}
-    address = request.GET.get('q')
-    coordinates = get_coordinates_from_address(address)
-    long, lat = lamber93_to_gps(coordinates[0], coordinates[1])
-    point = Point(long, lat, srid=4326)
-    
-    # Find the nearest coverage for each operator
-    operators = NetworkCoverage.objects.values_list('operator', flat=True).distinct()
-    response_data = {}
-    
-    for operator in operators:
-        coverage = NetworkCoverage.objects.filter(operator=operator).annotate(distance=Distance('location', point)).order_by('distance').first()
-        if coverage:
-            response_data[get_operator_name(operator)] = {
-                '2G': coverage.twoG,
-                '3G': coverage.threeG,
-                '4G': coverage.fourG
-            }
+        Returns:
+            Response: The HTTP response object containing the network coverage information.
+                If the network coverage is found, the response will contain a dictionary
+                with the operator names as keys and the corresponding network coverage
+                information as values.
+                If no network coverage is found, the response will contain a dictionary
+                with a single key-value pair: 'error' and the corresponding error message.
 
-    if response_data:
-        return Response(response_data)
-    else:
-        return Response({'error': 'No network coverage found'}, status=404)
+        Raises:
+            None.
+        """
+        address = request.GET.get('q')
 
-def get_operator_name(id):
-    operator_dict = {
-        '20801': 'Orange',
-        '20802': 'Orange',
-        '20803': 'MobiquiThings',
-        '20804': 'Netcom Group',
-        '20805': 'Globalstar Europe',
-        '20806': 'Globalstar Europe',
-        '20807': 'Globalstar Europe',
-        '20808': 'SFR',
-        '20809': 'SFR',
-        '20810': 'SFR',
-        '20811': 'SFR',
-        '20812': 'Hewlett-Packard France',
-        '20813': 'SFR',
-        '20814': 'RFF',
-        '20815': 'Free mobile',
-        '20816': 'Free mobile',
-        '20817': 'Legos',
-        '20818': 'Voxbone',
-        '20819': 'Altitude infrastructure',
-        '20820': 'Bouygues Telecom',
-        '20821': 'Bouygues Telecom',
-        '20822': 'Transatel Mobile',
-        '20823': 'Syndicat mixte ouvert Charente numérique',
-        '20824': 'MobiquiThings',
-        '20825': 'Lycamobile',
-        '20826': 'Bouygues Télécom Business distribution',
-        '20827': 'Coriolis Télécom',
-        '20828': 'Airmob',
-        '20829': 'Cubic telecom France',
-        '20830': 'Symacom',
-        '20831': 'Mundio Mobile',
-        '20832': 'Orange',
-        '20834': 'Cellhire France',
-        '20835': 'Free mobile',
-        '20886': 'SEM@FOR77',
-        '20888': 'Bouygues Telecom',
-        '20889': 'Fondation b-com',
-        '20890': 'Association Images & Réseaux',
-        '20891': 'Orange',
-        '20892': 'Association Plate-forme Telecom',
-        '20893': 'Thales communications',
-        '20894': 'Halys',
-        '20895': 'Orange',
-        '20896': 'Axione',
-        '20897': 'Thales communications',
-        '20898': 'Air France'
-    }
-    operator = operator_dict.get(id, 'Operador no encontrado')
-    return operator
+        if not address:
+            return Response({'error': 'Missing address parameter'}, status=status.HTTP_400_BAD_REQUEST)
+        coordinates = APIGouvFR().get_coordinates_from_address(address)
+        x, y = coordinates[0], coordinates[1]
+
+        # Convert Lambert93 coordinates to WGS84
+        long, lat = lamber93_to_gps(x, y)
+        point_wgs84 = Point(long, lat, srid=4326)
+
+        # Transform point to Lambert 93 for distance calculations
+        point = point_wgs84.transform(2154, clone=True)
+        
+        # Find the nearest coverage for each operator
+        operators = NetworkCoverage.objects.values_list('operator', flat=True).distinct()
+        response_data = {}
+
+        MARGIN = 10000 # 10km
+        for operator in operators:
+            # Find the nearest coverage for the operator --> Taking only the results within 10km
+            coverage = NetworkCoverage.objects.filter(operator=operator).annotate(distance=Distance('location', point)).filter(distance__lte=MARGIN).order_by('distance').first()
+            if coverage:
+                response_data[get_operator_name(operator)] = {
+                    'location': (coverage.location.x, coverage.location.y),
+                    'distance_km': coverage.distance.km,
+                    '2G': coverage.twoG,
+                    '3G': coverage.threeG,
+                    '4G': coverage.fourG
+                }
+
+        if response_data:
+            return Response(response_data)
+        else:
+            return Response({'error': 'No network coverage found'}, status=status.HTTP_404_NOT_FOUND)
