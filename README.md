@@ -10,7 +10,7 @@ This API allows querying the network coverage for a given address, providing inf
 - **Address to Coordinates Conversion:** Utilizes the `adresse.data.gouv.fr` API to convert textual addresses into geographic coordinates.
 - **CSV Data Import:** Imports network coverage data from a CSV file containing Lambert93 coordinates.
 
-<img src="https://github.com/love10aero/networkcoverageapi/blob/main/docs/logic.png"/>
+<img src="docs/logic.png" alt="API logic">
 
 
 ## Installation
